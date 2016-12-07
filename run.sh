@@ -5,6 +5,7 @@ reads_dir=`readlink -f raw_data/reads`
 reference=`find raw_data/reference_sequence -type f`
 outdir=`readlink -f analysis_results`
 threads=$1
+core=$2
 conda_bin_path=`readlink -f .mc/bin`
 scripts_path=`readlink -f scripts`
 count_snps_in_core_alignment_fail=false
@@ -54,6 +55,9 @@ done
 
 cd $outdir
 rm $reference
+if [ $core -eq "core" ]; then
+  exit 0
+fi
 
 if [ ! -f $outdir/core.full.aln ]; then
   snippy-core * || exit 1
