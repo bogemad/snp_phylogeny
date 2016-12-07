@@ -35,6 +35,7 @@ clean:
 .SECONDARY:
 
 ${BASE_BIN}/python:
+	mkdir -p raw_data/reads raw_data/reference_sequence analysis_results 
 	wget -O - ${MC_LINK} > mc.sh
 	bash mc.sh -bf -p ${MC}
 	.mc/bin/conda config --system --add channels r --add channels bioconda --add channels conda-forge
