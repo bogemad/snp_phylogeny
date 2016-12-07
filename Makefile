@@ -26,29 +26,41 @@ endif
 
 
 
-all: ${BASE_BIN}/python
+all: ${BASE_BIN}/python ${MC}/.condarc ${BASE_BIN}/conda-build ${MC}/conda-bld/linux-64/gubbins-2.2.0-0.tar.bz2 ${BASE_BIN}/snippy ${BASE_BIN}/run_gubbins.py
+
+mc_only: ${BASE_BIN}/python ${MC}/.condarc
 
 clean: 
 	rm -rf ${MC} mc.sh
 
-.PHONY: all clean
+.PHONY: all clean mc_only
 .SECONDARY:
 
 ${BASE_BIN}/python:
 	mkdir -p raw_data/reads raw_data/reference_sequence analysis_results 
 	wget -O - ${MC_LINK} > mc.sh
 	bash mc.sh -bf -p ${MC}
-	.mc/bin/conda config --system --add channels r --add channels bioconda --add channels conda-forge
-	.mc/bin/conda config --system --set always_yes True
-	conda install conda-build
-	cd scripts && conda build gubbins
-	conda install snippy raxml bcbiogff
-	conda install --use-local gubbins
 	chmod 755 run.sh scripts/*
 	rm -fr mc.sh
+
+${MC}/.condarc: ${BASE_BIN}/python
+	.mc/bin/conda config --system --add channels r --add channels bioconda --add channels conda-forge
+	.mc/bin/conda config --system --set always_yes True
+
+${BASE_BIN}/conda-build: ${BASE_BIN}/python ${MC}/.condarc
+	conda install conda-build
+
+${MC}/conda-bld/linux-64/gubbins-2.2.0-0.tar.bz2: ${BASE_BIN}/python ${MC}/.condarc ${BASE_BIN}/conda-build
+	cd scripts && conda build gubbins
+
+${BASE_BIN}/snippy: ${BASE_BIN}/python ${MC}/.condarc
+	conda install snippy raxml bcbiogff
 	cp -a scripts/vcffirstheader ${BASE_BIN}
 	sed -i 's~../vcflib/scripts/vcffirstheader~vcffirstheader~g' ${BASE_BIN}/freebayes-parallel
 	sed -i 's~../vcflib/bin/vcfstreamsort~vcfstreamsort~g' ${BASE_BIN}/freebayes-parallel
+
+${BASE_BIN}/run_gubbins.py: ${BASE_BIN}/python ${MC}/.condarc ${BASE_BIN}/conda-build ${MC}/conda-bld/linux-64/gubbins-2.2.0-0.tar.bz2
+	conda install --use-local gubbins
 
 ${PY2}/bin/python: ${BASE_BIN}/python
 	conda create -n py2 python=2
