@@ -30,7 +30,7 @@ all: ${BASE_BIN}/python ${MC}/.condarc ${BASE_BIN}/conda-build ${MC}/conda-bld/l
 
 mc_only: ${BASE_BIN}/python ${MC}/.condarc
 
-after_mc_only: ${BASE_BIN}/conda-build ${MC}/conda-bld/linux-64/gubbins-2.2.0-0.tar.bz2 ${BASE_BIN}/snippy ${BASE_BIN}/run_gubbins.py
+after_mc_only: ${BASE_BIN}/snippy ${BASE_BIN}/run_gubbins.py
 
 clean: 
 	rm -rf ${MC} mc.sh
