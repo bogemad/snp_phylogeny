@@ -24,8 +24,6 @@ ifneq ($(filter arm%,$(UNAME_P)),)
 	CCFLAGS += -D ARM
 endif
 
-
-
 all: ${BASE_BIN}/python ${MC}/.condarc ${BASE_BIN}/conda-build ${MC}/conda-bld/linux-64/gubbins-2.2.0-0.tar.bz2 ${BASE_BIN}/snippy ${BASE_BIN}/run_gubbins.py
 
 mc_only: ${BASE_BIN}/python ${MC}/.condarc
@@ -49,10 +47,10 @@ ${MC}/.condarc: ${BASE_BIN}/python
 	.mc/bin/conda config --system --add channels r --add channels bioconda --add channels conda-forge
 	.mc/bin/conda config --system --set always_yes True
 
-${BASE_BIN}/conda-build: ${BASE_BIN}/python ${MC}/.condarc
+${BASE_BIN}/conda-build: ${BASE_BIN}/python ${MC}/.condarc ${BASE_BIN}/snippy
 	conda install conda-build
 
-${MC}/conda-bld/linux-64/gubbins-2.2.0-0.tar.bz2: ${BASE_BIN}/python ${MC}/.condarc ${BASE_BIN}/conda-build
+${MC}/conda-bld/linux-64/gubbins-2.2.0-0.tar.bz2: ${BASE_BIN}/python ${MC}/.condarc ${BASE_BIN}/conda-build ${BASE_BIN}/snippy
 	cd scripts && conda build gubbins
 
 ${BASE_BIN}/snippy: ${BASE_BIN}/python ${MC}/.condarc
@@ -61,7 +59,7 @@ ${BASE_BIN}/snippy: ${BASE_BIN}/python ${MC}/.condarc
 	sed -i 's~../vcflib/scripts/vcffirstheader~vcffirstheader~g' ${BASE_BIN}/freebayes-parallel
 	sed -i 's~../vcflib/bin/vcfstreamsort~vcfstreamsort~g' ${BASE_BIN}/freebayes-parallel
 
-${BASE_BIN}/run_gubbins.py: ${BASE_BIN}/python ${MC}/.condarc ${BASE_BIN}/conda-build ${MC}/conda-bld/linux-64/gubbins-2.2.0-0.tar.bz2
+${BASE_BIN}/run_gubbins.py: ${BASE_BIN}/python ${MC}/.condarc ${BASE_BIN}/conda-build ${MC}/conda-bld/linux-64/gubbins-2.2.0-0.tar.bz2 ${BASE_BIN}/snippy
 	conda install --use-local gubbins
 
 ${PY2}/bin/python: ${BASE_BIN}/python
