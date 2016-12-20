@@ -37,10 +37,10 @@ clean:
 .SECONDARY:
 
 ${BASE_BIN}/python:
-	mkdir -p raw_data/reads raw_data/reference_sequence analysis_results 
+	mkdir -p raw_data/reads raw_data/reference_sequence analysis_results logs .temp
 	wget -O - ${MC_LINK} > mc.sh
 	bash mc.sh -bf -p ${MC}
-	chmod 755 run.sh scripts/*
+	chmod 755 run.sh run-hpc.sh scripts/*
 	rm -fr mc.sh
 
 ${MC}/.condarc: ${BASE_BIN}/python
