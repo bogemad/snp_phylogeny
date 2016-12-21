@@ -39,20 +39,20 @@ def optimise_chunksize(alignment, threads):
 
 
 def count_chunk_snps(item):
-	subject,query = item
+	subject,query,alignment = item
 	count = 0
 	if query != subject:
 		for k, q_base in enumerate(query):
 			if q_base in ["A","T","C","G"]:
 				s_base = subject[k]
 				if s_base in ["A","T","C","G"]:
-					if q_base != s_base:
+					if q_base != s_base and 'N' in alignment[:,k] == False:
 						count += 1
 	return count
 
 
-def count_subject_snps(subject,query,chunksize,threads):
-	chunk_list = [(subject[i:i+chunksize].seq,query[i:i+chunksize].seq) for i in range(0, len(query), chunksize)]
+def count_subject_snps(alignment,subject,query,chunksize,threads):
+	chunk_list = [(subject[i:i+chunksize].seq,query[i:i+chunksize].seq,alignment) for i in range(0, len(query), chunksize)]
 	count_list = []
 	p = multiprocessing.Pool(threads)
 	count_list = p.map_async(count_chunk_snps,chunk_list,chunksize=1).get()
@@ -72,7 +72,7 @@ def main():
 	for query in alignment:
 		snp_count_d = {}
 		for subject in alignment:
-			snp_count_d[subject.id] = count_subject_snps(subject,query,chunksize,threads)
+			snp_count_d[subject.id] = count_subject_snps(alignment,subject,query,chunksize,threads)
 		print("Adding %s results to dataframe" % query.id)
 		df_1 = pd.DataFrame(snp_count_d, index=[query.id])
 		df = df.append(df_1)
