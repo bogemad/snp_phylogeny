@@ -9,8 +9,7 @@ mkdir -p $temp
 mkdir -p $logs
 
 cpus=$1
-let mem_num=cpus*4
-mem=${mem_num}gb
+mem=$2
 
 sed "s~xxxcpusxxx~$cpus~g" $base_path/scripts/qsub_submit.sh | sed "s~xxxmemxxx~$mem~g" | sed "s~xxxbasepathxxx~$base_path~g" > $temp/qsub.sh
 
