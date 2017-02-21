@@ -40,6 +40,7 @@ ${BASE_BIN}/python:
 	mkdir -p raw_data/reads raw_data/reference_sequence analysis_results logs .temp
 	wget -O - ${MC_LINK} > mc.sh
 	bash mc.sh -bf -p ${MC}
+	conda install -y python=3.5
 	chmod 755 run.sh run-hpc.sh scripts/*
 	rm -fr mc.sh
 
