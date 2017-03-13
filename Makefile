@@ -40,6 +40,7 @@ ${BASE_BIN}/python:
 	mkdir -p raw_data/reads raw_data/reference_sequence analysis_results logs .temp
 	wget -O - ${MC_LINK} > mc.sh
 	bash mc.sh -bf -p ${MC}
+	conda install -y python=3.5
 	chmod 755 run.sh run-hpc.sh scripts/*
 	rm -fr mc.sh
 
@@ -54,7 +55,7 @@ ${MC}/conda-bld/linux-64/gubbins-2.2.0-0.tar.bz2: ${BASE_BIN}/python ${MC}/.cond
 	cd scripts && conda build gubbins
 
 ${BASE_BIN}/snippy: ${BASE_BIN}/python ${MC}/.condarc
-	conda install snippy raxml bcbiogff
+	conda install snippy raxml bcbiogff pandas trimal
 	cp -a scripts/vcffirstheader ${BASE_BIN}
 	sed -i 's~../vcflib/scripts/vcffirstheader~vcffirstheader~g' ${BASE_BIN}/freebayes-parallel
 	sed -i 's~../vcflib/bin/vcfstreamsort~vcfstreamsort~g' ${BASE_BIN}/freebayes-parallel

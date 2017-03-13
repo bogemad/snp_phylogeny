@@ -55,9 +55,7 @@ done
 
 cd $outdir
 rm $reference
-if [ $core -eq "core" ]; then
-  exit 0
-fi
+
 
 if [ ! -f $outdir/core.full.aln ]; then
   snippy-core * || exit 1
@@ -65,9 +63,22 @@ else
   echo "Core alignment has already been generated. Skipping this step..."
 fi
 
+
+if [ ! -f $outdir/core.full.trimmed.aln ]; then
+  replace_Ns_with_gaps.py core.full.aln $threads core.full.trimmed.aln || exit 1
+else
+  echo "Core alignment has already been trimmed. Skipping this step..."
+fi
+
+if [ ! -f $outdir/total.snp_counts.txt ]; then
+  count_snps_in_core_alignment.py core.full.trimmed.aln total.snp_counts.txt $threads
+else
+  echo "Total snp count matrix has already been generated. Skipping this step..."
+fi
+
 if [ ! -f $outdir/core.final_tree.tre ]; then
   echo "Running recombination filter..."
-  run_gubbins.py -i 10 -p core -c $threads core.full.aln || exit 1
+  run_gubbins.py -i 10 -f 15 -p core -c $threads core.full.trimmed.aln || exit 1
 else
   echo "Recombination filtering by gubbins has already been done. Skipping this step..."
 fi
@@ -79,38 +90,45 @@ else
 fi
 
 if [ ! -f $outdir/core.gubbins_filtered.aln ]; then
-  filter_recombinations.py core.recombination_predictions.gff core.full.aln core.gubbins_filtered.aln || exit 1
+  filter_recombinations.py core.recombination_predictions.gff core.full.trimmed.aln core.gubbins_filtered.aln || exit 1
 else
   echo "Recombination filtered alignment has already been bulit. Skipping this step..."
 fi
 
 if [ ! -f $outdir/core.gubbins_filtered.snp_counts.txt ]; then
-  count_snps_in_core_alignment.py core.gubbins_filtered.aln core.gubbins_filtered.snp_counts.txt 4 || count_snps_in_core_alignment_fail=true
+  count_snps_in_core_alignment.py core.gubbins_filtered.aln core.gubbins_filtered.snp_counts.txt $threads || count_snps_in_core_alignment_fail=true
 else
   echo "Core snp count matrix has already been generated. Skipping this step..."
 fi
 
-if [ ! -f $outdir/RAxML_bestTree.core.gubbins_filtered ]; then
+if [ ! -f $outdir/core.gubbins_filtered.trimmed.aln ]; then
+  remove_gaps_Ns.py core.gubbins_filtered.aln $threads core.gubbins_filtered.trimmed.aln
+else
+  echo "Gap filtered alignment has already been bulit. Skipping this step..."
+fi
 
-  raxmlHPC-PTHREADS -T 4 -m GTRGAMMA -p 64855 -# 20 -s core.gubbins_filtered.aln -n core.gubbins_filtered || exit 1
+
+if [ ! -f $outdir/RAxML_bestTree.core.gubbins_filtered.trimmed ]; then
+
+  raxmlHPC-PTHREADS -T $threads -m GTRGAMMA -p 64855 -# 20 -s core.gubbins_filtered.trimmed.aln -n core.gubbins_filtered.trimmed || exit 1
 else
   echo "Initial RAxML tree has already been generated. Skipping this step..."
 fi
 
-if [ ! -f $outdir/RAxML_bootstrap.core.gubbins_filtered.bootstrap ]; then
-  raxmlHPC-PTHREADS -T 4 -m GTRGAMMA -p 64855 -b 64855 -# 100 -s core.gubbins_filtered.aln -n core.gubbins_filtered.bootstrap || exit 1
+if [ ! -f $outdir/RAxML_bootstrap.core.gubbins_filtered.trimmed.bootstrap ]; then
+  raxmlHPC-PTHREADS -T $threads -m GTRGAMMA -p 64855 -b 64855 -# 100 -s core.gubbins_filtered.trimmed.aln -n core.gubbins_filtered.trimmed.bootstrap || exit 1
 else
   echo "Bootstrap RAxML trees have already been generated. Skipping this step..."
 fi
 
-if [ ! -f $outdir/RAxML_bipartitionsBranchLabels.core.gubbins_filtered.final ]; then
-  raxmlHPC-PTHREADS -T 4 -m GTRGAMMA -p 64855 -f b -t RAxML_bestTree.core.gubbins_filtered -z RAxML_bootstrap.core.gubbins_filtered.bootstrap -n core.gubbins_filtered.final || exit 1
+if [ ! -f $outdir/RAxML_bipartitionsBranchLabels.core.gubbins_filtered.trimmed.final ]; then
+  raxmlHPC-PTHREADS -T $threads -m GTRGAMMA -p 64855 -f b -t RAxML_bestTree.core.gubbins_filtered.trimmed -z RAxML_bootstrap.core.gubbins_filtered.trimmed.bootstrap -n core.gubbins_filtered.trimmed.final || exit 1
 else
   echo "Final RAxML tree has already been generated. Skipping this step..."
 fi
 
-if [ ! -f $outdir/RAxML_rootedTree.core.gubbins_filtered.finalrooted ]; then
-  raxmlHPC-PTHREADS -T 4 -m GTRGAMMA -f I -t RAxML_bipartitionsBranchLabels.core.gubbins_filtered.final -n core.gubbins_filtered.finalrooted || exit 1
+if [ ! -f $outdir/RAxML_rootedTree.core.gubbins_filtered.trimmed.finalrooted ]; then
+  raxmlHPC-PTHREADS -T $threads -m GTRGAMMA -f I -t RAxML_bipartitionsBranchLabels.core.gubbins_filtered.trimmed.final -n core.gubbins_filtered.trimmed.finalrooted || exit 1
 else
   echo "Final RAxML rooted tree has already been generated. Skipping this step..."
 fi
