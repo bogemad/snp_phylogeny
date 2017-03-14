@@ -1,16 +1,26 @@
 #!/bin/bash
 
+base_path=$PWD
 reads_dir=`readlink -f raw_data/reads`
 
 reference=`find raw_data/reference_sequence -type f`
 outdir=`readlink -f analysis_results`
 threads=$1
-core=$2
 conda_bin_path=`readlink -f .mc/bin`
 scripts_path=`readlink -f scripts`
 count_snps_in_core_alignment_fail=false
 gubbins_drawer_fail=false
 PATH=$conda_bin_path:$scripts_path:$PATH
+temp=`readlink -f .temp`
+mkdir -p $temp
+
+if [ -z "$2" ]
+then
+  hpc=false
+else
+  hpc=$2
+fi
+
 
 echo ""
 echo "Reads directory = $reads_dir"
@@ -43,15 +53,42 @@ fi
 reference=$outdir/reference$refsuff
 cd $reads_dir
 
-for file in `find $reads_dir -type f`; do
-  name=`get_samplenames.py $file`
-  if [ $name == 'fail' ]; then echo "Failed to determine samplename for file path: $name. Check if this is a fastq or fastq.gz file."; exit 1; fi
-  if [ ! -f $outdir/$name/$name.aligned.fa ]; then
-    snippy --prefix $name --cpus $threads --outdir $outdir/$name --ref $reference --peil $file || (echo "Alignment failed! Check if $filename is correct fastq file." && exit 1)
-  else
-    echo "$name reads have already been aligned. Skipping this step..."
-  fi
-done
+exit_on_end=false
+if [ "$hpc" == "true" ]
+then
+  for file in `find -L $reads_dir -type f`
+  do
+    name=`get_samplenames.py $file`
+    if [ ! -f $outdir/$name/$name.aligned.fa ]; then
+      exit_on_end=true
+      if [ "${#name}" -gt 15 ]
+      then
+        short_name=${name:0:15}
+      else
+        short_name=$name
+      fi
+      sed "s~xxxshortjobnamexxx~$short_name~g" $base_path/scripts/qsub_multisnippy.sh | sed "s~xxxbasepathxxx~$base_path~g" | sed "s~xxxfilexxx~$file~g" | sed "s~xxxoutdirxxx~$outdir~g" | sed "s~xxxreferencexxx~$reference~g" > $temp/qsub_$name.sh
+      qsub $temp/qsub_$name.sh
+      rm -rf $temp/qsub_$name.sh
+    fi
+  done
+else
+  for file in `find $reads_dir -type f`; do
+    name=`get_samplenames.py $file`
+    if [ $name == 'fail' ]; then echo "Failed to determine samplename for file path: $name. Check if this is a fastq or fastq.gz file."; exit 1; fi
+    if [ ! -f $outdir/$name/$name.aligned.fa ]; then
+      snippy --prefix $name --cpus $threads --outdir $outdir/$name --ref $reference --peil $file || (echo "Alignment failed! Check if $filename is correct fastq file." && exit 1)
+    else
+      echo "$name reads have already been aligned. Skipping this step..."
+    fi
+  done
+fi
+
+if [ "$exit_on_end" == "true" ]
+then
+echo "Snippy jobs have been submitted to the HPC smallq for processing. Please restart the pipeline when these jobs have been completed."
+exit
+fi
 
 cd $outdir
 rm $reference
