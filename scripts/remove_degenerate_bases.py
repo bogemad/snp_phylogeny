@@ -36,8 +36,10 @@ def chunks(l, n):
 		yield l[:, i:i + n]
 
 def gen_chunks(sequence, threads):
-	chunk_num = threads ** 4
+	chunk_num = threads ** 2
 	chunk_size = int(len(sequence)/chunk_num)
+	if chunk_size < 1:
+		chunk_size = 1
 	return [(i, sequence[i:i + chunk_size]) for i in range(0, len(sequence), chunk_size)]
 
 def filter_degenerates(indexed_sequence_chunk):
@@ -66,6 +68,7 @@ print("Scanning for degenerate reference bases...")
 sequences, annotations_present = parse_sequence_file(sequence_file)
 cleaned_sequences = []
 for sequence in sequences:
+	print(len(sequence))
 	chunk_list = gen_chunks(sequence, threads)
 	p = multiprocessing.Pool(threads)
 	result = p.map_async(filter_degenerates, chunk_list, chunksize=1)

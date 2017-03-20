@@ -20,7 +20,7 @@ then
 else
   hpc=$2
 fi
-
+id_threshold=$3
 
 echo ""
 echo "Reads directory = $reads_dir"
@@ -53,6 +53,15 @@ fi
 reference=$outdir/reference$refsuff
 cd $reads_dir
 
+# for file in `find $reads_dir -type f`; do
+  # name=`get_samplenames.py $file`
+  # if [ $name == 'fail' ]; then echo "Failed to determine samplename for file path: $name. Check if this is a fastq or fastq.gz file."; exit 1; fi
+  # if [ ! -f $outdir/$name/$name.aligned.fa ]; then
+    # snippy --prefix $name --cpus $threads --outdir $outdir/$name --ref $reference --peil $file || (echo "Alignment failed! Check if $filename is correct fastq file." && exit 1)
+  # else
+    # echo "$name reads have already been aligned. Skipping this step..."
+  # fi
+# done
 exit_on_end=false
 if [ "$hpc" == "true" ]
 then
@@ -73,15 +82,7 @@ then
     fi
   done
 else
-  for file in `find $reads_dir -type f`; do
-    name=`get_samplenames.py $file`
-    if [ $name == 'fail' ]; then echo "Failed to determine samplename for file path: $name. Check if this is a fastq or fastq.gz file."; exit 1; fi
-    if [ ! -f $outdir/$name/$name.aligned.fa ]; then
-      snippy --prefix $name --cpus $threads --outdir $outdir/$name --ref $reference --peil $file || (echo "Alignment failed! Check if $filename is correct fastq file." && exit 1)
-    else
-      echo "$name reads have already been aligned. Skipping this step..."
-    fi
-  done
+  parallel -j $threads --progress multisnippy.sh $file $outdir $reference 
 fi
 
 if [ "$exit_on_end" == "true" ]
@@ -96,10 +97,12 @@ rm $reference
 
 if [ ! -f $outdir/core.full.aln ]; then
   snippy-core * || exit 1
+  mkdir -p ../excluded_sequences/poor_ref_alignment
+  ditch_distant_core_sequences.py $id_threshold
+  snippy-core * || exit 1
 else
   echo "Core alignment has already been generated. Skipping this step..."
 fi
-
 
 if [ ! -f $outdir/core.full.trimmed.aln ]; then
   replace_Ns_with_gaps.py core.full.aln $threads core.full.trimmed.aln || exit 1
