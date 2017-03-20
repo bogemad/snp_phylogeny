@@ -13,7 +13,7 @@ def ditch_distant_sequences(core_data):
 			archive = "{}.alignment.tar.gz".format(line_data[0])
 			reads_file = "../raw_data/reads/{}.fastq.gz".format(line_data[0])
 			moved_reads_file = "../excluded_sequences/poor_ref_alignment/{}.fastq.gz".format(line_data[0])
-			moved_archive = "../excluded_sequences/poor_ref_alignment/{}.tar.gz"".format(line_data[0])
+			moved_archive = "../excluded_sequences/poor_ref_alignment/{}.tar.gz".format(line_data[0])
 			outline = "Sample {} coverage is too low ({}%), removing from core alignment. Reads and reference mapping data will be retained in archive: {}".format(line_data[0],line_data[3],archive)
 			print(outline)
 			log.write(outline + '\n')
