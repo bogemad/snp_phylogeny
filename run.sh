@@ -27,6 +27,7 @@ echo "Reads directory = $reads_dir"
 echo "Reference sequence file = $reference"
 echo "Output directory = $outdir"
 echo "Process threads = $threads"
+echo "Minimum reference coverage threshold = $id_threshold%"
 echo ""
 
 ref_files=`find raw_data/reference_sequence -type f | wc -l`

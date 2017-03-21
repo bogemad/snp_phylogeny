@@ -10,7 +10,8 @@ mkdir -p $logs
 
 cpus=$1
 mem=$2
+threshold=$3
 
-sed "s~xxxcpusxxx~$cpus~g" $base_path/scripts/qsub_submit.sh | sed "s~xxxmemxxx~$mem~g" | sed "s~xxxbasepathxxx~$base_path~g" > $temp/qsub.sh
+sed "s~xxxcpusxxx~$cpus~g" $base_path/scripts/qsub_submit.sh | sed "s~xxxmemxxx~$mem~g" | sed "s~xxxbasepathxxx~$base_path~g" | sed "s~xxxthresholdxxx~$threshold~g" > $temp/qsub.sh
 
 qsub $temp/qsub.sh
