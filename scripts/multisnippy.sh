@@ -15,4 +15,13 @@ then
 	exit 1
 fi
 
-snippy --prefix $name --cpus 1 --outdir $outdir/$name --ref $reference --peil $file || (echo "Alignment failed! Check if $filename is correct fastq file." && exit 1)
+read_format=`id_read_format.py $file`
+
+if [ $read_format == "fastq" ]; do
+	snippy --prefix $name --cpus 1 --outdir $outdir/$name --ref $reference --peil $file || (echo "Alignment failed! Check if $file is correct fastq file." && exit 1)
+elif [ $read_format == "fasta" ]; do
+	snippy --prefix $name --cpus 1 --outdir $outdir/$name --ref $reference --ctgs $file || (echo "Alignment failed! Check if $file is correct fasta file." && exit 1)
+else
+	echo "Cannot determine format of read file: $file. 
+	Please ensure it is either fastq (for raw sequencing reads) or fasta (for assembled genomes)"
+fi
