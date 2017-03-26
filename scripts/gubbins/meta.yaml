@@ -23,7 +23,7 @@ requirements:
     - nose
     - reportlab
     - dendropy >=4.0
-    - biopython >=1.59
+    - biopython ==1.65
     - pillow
     - zlib
     - certifi
@@ -35,7 +35,7 @@ requirements:
     - nose
     - reportlab
     - dendropy >=4.0
-    - biopython >=1.59
+    - biopython ==1.65
     - certifi
     - pillow
     - libgcc
