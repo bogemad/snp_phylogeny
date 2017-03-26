@@ -12,14 +12,24 @@ Add input reads and reference sequence to the raw_data/reads and raw_data/refere
 `./run.sh <threads> <coverage_cutoff_threshold>`
 
 where:
-  threads                    number of processes used by the pipeline (usually equiv. to number of cpu cores).
-  coverage_cutoff_threshold  % coverage of reference sequence (0-100%) used to reject a sample. Samples lower than this threshold will be excluded from phylogenetic pipeline steps.
+
+```
+  threads                     number of processes used by the pipeline (usually equiv. to number of cpu cores).
+  coverage_cutoff_threshold   % coverage of reference sequence (0-100%) used to reject a sample. Samples lower 
+                              than this threshold will be excluded from phylogenetic pipeline steps.
+  ```
   
 ##### To run on a PBS-type job submission system (like those use on some hpc's):
 
 `./run-hpc.sh <threads> <memory> <coverage_cutoff_threshold>`
 
 where:
-  threads                    number of cpus requested from hpc and number of processes used by pipeline (as above) (usually equiv. to number of cpu cores).
-  memory                     RAM requested from the hpc - use the format Xgb where X is the about of RAM to be requested.
-  coverage_cutoff_threshold  % coverage of reference sequence (0-100%) used to reject a sample. Samples lower than this threshold will be excluded from phylogenetic pipeline steps.
+
+```
+  threads                     number of cpus requested from hpc and number of processes used by pipeline (as 
+                              above) (usually equiv. to number of cpu cores).
+  memory                      RAM requested from the hpc - use the format Xgb where X is the about of RAM 
+                              to be requested.
+  coverage_cutoff_threshold   % coverage of reference sequence (0-100%) used to reject a sample. Samples 
+                              lower than this threshold will be excluded from phylogenetic pipeline steps.
+  ```
