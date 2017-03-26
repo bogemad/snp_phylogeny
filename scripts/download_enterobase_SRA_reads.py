@@ -16,7 +16,7 @@ def gen_reads_dict(file):
 
 
 def download_reads(reads_list, name):
-	base_path = os.path.dirname(__file__)
+	base_path = os.path.dirname(os.path.dirname(__file__))
 	temp = os.path.join(base_path,".temp")
 	if os.path.isdir(temp) == False:
 		os.mkdir(temp)
@@ -25,11 +25,11 @@ def download_reads(reads_list, name):
 		if os.path.exists((SRR + ".fastq.gz")) == False:
 			subprocess.call(["fastq-dump", "--gzip", "--skip-technical", "--read-filter", "pass", "--dumpbase", "--split-spot", "--clip", "--outdir", temp, SRR])
 	print("%s: Read download complete." % name)
-	return [os.path.join(temp,(SRR + ".fastq.gz")) for SRR in reads_list]
+	return [os.path.join(temp,(SRR + "_pass.fastq.gz")) for SRR in reads_list]
 
 
 def merge_reads(name, filenames):
-	base_path = os.path.dirname(__file__)
+	base_path = os.path.dirname(os.path.dirname(__file__))
 	data_dir = os.path.join(base_path,"raw_data","reads")
 	merged_fastq = os.path.join(data_dir,(name + ".fastq.gz"))
 	print("%s: Merging reads..." % name)

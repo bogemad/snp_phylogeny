@@ -17,9 +17,9 @@ fi
 
 read_format=`id_read_format.py $file`
 
-if [ $read_format == "fastq" ]; do
+if [ $read_format == "fastq" ]; then
 	snippy --prefix $name --cpus 1 --outdir $outdir/$name --ref $reference --peil $file || (echo "Alignment failed! Check if $file is correct fastq file." && exit 1)
-elif [ $read_format == "fasta" ]; do
+elif [ $read_format == "fasta" ]; then
 	snippy --prefix $name --cpus 1 --outdir $outdir/$name --ref $reference --ctgs $file || (echo "Alignment failed! Check if $file is correct fasta file." && exit 1)
 else
 	echo "Cannot determine format of read file: $file. 

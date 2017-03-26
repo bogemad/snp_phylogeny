@@ -64,27 +64,27 @@ cd $reads_dir
   # fi
 # done
 exit_on_end=false
-if [ "$hpc" == "true" ]
-then
-  for file in `find -L $reads_dir -type f`
-  do
-    name=`get_samplenames.py $file`
-    if [ ! -f $outdir/$name/$name.aligned.fa ]; then
-      exit_on_end=true
-      if [ "${#name}" -gt 15 ]
-      then
-        short_name=${name:0:15}
-      else
-        short_name=$name
-      fi
-      sed "s~xxxshortjobnamexxx~$short_name~g" $base_path/scripts/qsub_multisnippy.sh | sed "s~xxxbasepathxxx~$base_path~g" | sed "s~xxxfilexxx~$file~g" | sed "s~xxxoutdirxxx~$outdir~g" | sed "s~xxxreferencexxx~$reference~g" > $temp/qsub_$name.sh
-      qsub $temp/qsub_$name.sh
-      rm -rf $temp/qsub_$name.sh
-    fi
-  done
-else
-  parallel -j $threads --progress multisnippy.sh $file $outdir $reference 
-fi
+#if [ "$hpc" == "true" ]
+#then
+#  for file in `find -L $reads_dir -type f`
+#  do
+#    name=`get_samplenames.py $file`
+#    if [ ! -f $outdir/$name/$name.aligned.fa ]; then
+#      exit_on_end=true
+#      if [ "${#name}" -gt 15 ]
+#      then
+#        short_name=${name:0:15}
+#      else
+#        short_name=$name
+#      fi
+#      sed "s~xxxshortjobnamexxx~$short_name~g" $base_path/scripts/qsub_multisnippy.sh | sed "s~xxxbasepathxxx~$base_path~g" | sed "s~xxxfilexxx~$file~g" | sed "s~xxxoutdirxxx~$outdir~g" | sed "s~xxxreferencexxx~$reference~g" > $temp/qsub_$name.sh
+#      qsub $temp/qsub_$name.sh
+#      rm -rf $temp/qsub_$name.sh
+#    fi
+#  done
+#else
+  parallel -j $threads --progress multisnippy.sh {} $outdir $reference ::: `find -L $reads_dir -type f`
+#fi
 
 if [ "$exit_on_end" == "true" ]
 then
