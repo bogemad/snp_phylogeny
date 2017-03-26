@@ -11,7 +11,7 @@ if ext == ".gz":
 	name, ext = os.path.splitext(name)
 
 
-if ext == ".fastq" or ext == ".fq":
+if ext == ".fastq" or ext == ".fq" or ext == ".fasta" or ext == ".fa" or ext == ".fna" or ext == ".fsa":
 	name2, ext2 = os.path.splitext(name)
 	if ext2 == ".lf":
 		name = name2
