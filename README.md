@@ -1,5 +1,5 @@
 # snp_phylogeny
-## A base for running snp based phylogenetic analysis
+## A pipeline for running SNP-based phylogenetic analysis
 
 ### Installation
 
