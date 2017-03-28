@@ -174,6 +174,87 @@ else
   echo "Final RAxML rooted tree has already been generated. Skipping this step..."
 fi
 
+cd $outdir
+mkdir -p intermediate_files
+mv core.full.trimmed.aln \
+core.full.trimmed.aln.seq.joint.txt \
+core.branch_base_reconstruction.embl \
+core.filtered_polymorphic_sites.fasta \
+core.filtered_polymorphic_sites.phylip \
+core.final_tree.tre \
+core.per_branch_statistics.csv \
+core.gubbins_filtered.trimmed.aln \
+core.gubbins_filtered.trimmed.aln.reduced \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.0 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.1 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.2 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.3 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.4 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.5 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.0 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.1 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.2 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.3 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.4 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.5 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.6 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.6 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.7 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.8 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.9 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.10 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.11 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.12 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.7 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.8 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.9 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.10 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.11 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.12 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.13 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.13 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.14 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.15 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.16 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.17 \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.18 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.14 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.15 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.16 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.17 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.18 \
+RAxML_parsimonyTree.core.gubbins_filtered.trimmed.RUN.19 \
+RAxML_bestTree.core.gubbins_filtered.trimmed \
+RAxML_info.core.gubbins_filtered.trimmed \
+RAxML_log.core.gubbins_filtered.trimmed.RUN.19 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.0 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.1 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.2 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.3 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.4 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.5 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.6 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.7 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.8 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.9 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.10 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.11 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.12 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.13 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.14 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.15 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.16 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.17 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.18 \
+RAxML_result.core.gubbins_filtered.trimmed.RUN.19 \
+RAxML_bootstrap.core.gubbins_filtered.trimmed.bootstrap \
+RAxML_info.core.gubbins_filtered.trimmed.bootstrap \
+RAxML_bipartitions.core.gubbins_filtered.trimmed.final \
+RAxML_bipartitionsBranchLabels.core.gubbins_filtered.trimmed.final \
+RAxML_info.core.gubbins_filtered.trimmed.final \
+RAxML_info.core.gubbins_filtered.trimmed.finalrooted \
+intermediate_files
+
 if [ "gubbins_drawer_fail" == true ]; then
   echo "Gubbins drawer script failed. pdf of predicted recombinations for visualisation has not been generated"
 fi
