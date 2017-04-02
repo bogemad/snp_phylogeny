@@ -168,7 +168,7 @@ def validate_multi_import(array, array2):
 
 def main():
 	alignment_file = sys.argv[1]
-	threads = int(sys.argv[3])
+	threads = int(sys.argv[4])
 	print("Importing alignment...")
 	aln = AlignIO.read(alignment_file,"fasta")
 	print("Cleaning alignment of gaps...")
@@ -181,6 +181,8 @@ def main():
 	print("Sorting results...")
 	snp_count_d = sort_results(results)
 	df = generate_data_frame(snp_count_d,id_list)
+	stats = df.describe()
+	stats.to_csv(sys.argv[3], sep="\t")
 	df.to_csv(sys.argv[2], sep="\t")
 	print("Done.")
 

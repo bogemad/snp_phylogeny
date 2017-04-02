@@ -95,6 +95,7 @@ fi
 cd $outdir
 rm $reference
 
+gubbins_fail=false
 
 if [ ! -f $outdir/core.full.aln ]; then
   snippy-core * || exit 1
@@ -112,14 +113,26 @@ else
 fi
 
 if [ ! -f $outdir/total.snp_counts.txt ]; then
-  count_snps_in_core_alignment.py core.full.trimmed.aln total.snp_counts.txt $threads
+  count_snps_in_core_alignment.py core.full.trimmed.aln total.snp_counts.txt total.snp_counts.stats $threads
 else
   echo "Total snp count matrix has already been generated. Skipping this step..."
 fi
 
 if [ ! -f $outdir/core.final_tree.tre ]; then
   echo "Running recombination filter..."
-  run_gubbins.py -i 10 -f 15 -p core -c $threads core.full.trimmed.aln || exit 1
+  run_gubbins.py -i 10 -f 15 -p core -c $threads core.full.trimmed.aln || gubbins_fail=true
+  if [ "$gubbins_fail" == true ]; then
+    echo "gubbins using RAxML only method has failed. Retrying with fastree for first iteration."
+    gubbins_fail=false
+    rm -rf core.full.trimmed.aln.*
+    run_gubbins.py -i 10 -f 15 --tree_builder hybrid -p core -c $threads core.full.trimmed.aln || gubbins_fail=true
+  fi
+  if [ "$gubbins_fail" == true ]; then
+    echo "gubbins using hybrid RAxML/FastTree method has failed. Retrying with fastree for all iterations."
+    gubbins_fail=false
+    rm -rf core.full.trimmed.aln.*
+    run_gubbins.py -i 10 -f 15 --tree_builder fasttree -p core -c $threads core.full.trimmed.aln || (echo "Running gubbins using all methods have failed. Please examine your alignment or consider removing highly divergent sequences. Looking at total.snp_counts.stats is a good place to start..."; exit 1)
+  fi
 else
   echo "Recombination filtering by gubbins has already been done. Skipping this step..."
 fi
@@ -137,7 +150,7 @@ else
 fi
 
 if [ ! -f $outdir/core.gubbins_filtered.snp_counts.txt ]; then
-  count_snps_in_core_alignment.py core.gubbins_filtered.aln core.gubbins_filtered.snp_counts.txt $threads || count_snps_in_core_alignment_fail=true
+  count_snps_in_core_alignment.py core.gubbins_filtered.aln core.gubbins_filtered.snp_counts.txt core.gubbins_filtered.snp_counts.stats $threads || count_snps_in_core_alignment_fail=true
 else
   echo "Core snp count matrix has already been generated. Skipping this step..."
 fi
@@ -255,11 +268,11 @@ RAxML_info.core.gubbins_filtered.trimmed.final \
 RAxML_info.core.gubbins_filtered.trimmed.finalrooted \
 intermediate_files
 
-if [ "gubbins_drawer_fail" == true ]; then
+if [ "$gubbins_drawer_fail" == true ]; then
   echo "Gubbins drawer script failed. pdf of predicted recombinations for visualisation has not been generated"
 fi
 
-if [ "count_snps_in_core_alignment_fail" == true ]; then
+if [ "$count_snps_in_core_alignment_fail" == true ]; then
   echo "Script to generate core snp count matrix has failed."
 fi
 
