@@ -11,6 +11,14 @@ cd <dirname>
 make
 ```
 
+or to install on a HPC running a PBS-type job submission system:
+
+```
+git clone https://github.com/bogemad/snp_phylogeny.git <dirname>
+cd <dirname>
+./build-hpc.sh
+```
+
 where:
 
 ```
@@ -45,7 +53,7 @@ where:
                               than this threshold will be excluded from phylogenetic pipeline steps.
   ```
   
-##### To run on a PBS-type job submission system (like those use on some hpc's):
+##### To run on a PBS-type job submission system (like those used on some hpc's):
 
 `./run-hpc.sh <threads> <memory> <coverage_cutoff_threshold>`
 
