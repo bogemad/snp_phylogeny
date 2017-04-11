@@ -8,4 +8,5 @@
 
 cd xxxbasepathxxx
 
+mkdir -p logs
 make clean && make &> logs/make.log

@@ -30,6 +30,16 @@ echo "Process threads = $threads"
 echo "Minimum reference coverage threshold = $id_threshold%"
 echo ""
 
+for dir in `find $base_path/analysis_results -maxdepth 1 -mindepth 1 -type d -exec basename {} \;`; do
+if `ls $base_path/raw_data/reads/${dir}* &> /dev/null`; then
+useless_var=true
+else
+echo "$dir has no associated read file and will be deleted"
+rm -rf $base_path/analysis_results/$dir
+fi
+done
+
+
 ref_files=`find raw_data/reference_sequence -type f | wc -l`
 if [[ $ref_files > 1 ]]; then
 echo "Make sure there is only one reference file in raw_data/reference_sequence directory."
@@ -52,39 +62,19 @@ else
 fi
 
 reference=$outdir/reference$refsuff
-cd $reads_dir
+for file in `find $reads_dir -type f`; do
+  name=`get_samplenames.py $file`
+  snippy_done=()
+  snippy_not_done=()
+  if `ls $base_path/analysis_results/$name &> /dev/null`; then
+    snippy_done+=("$file")
+  else
+    snippy_not_done+=("$file")
+  fi
+done
 
-# for file in `find $reads_dir -type f`; do
-  # name=`get_samplenames.py $file`
-  # if [ $name == 'fail' ]; then echo "Failed to determine samplename for file path: $name. Check if this is a fastq or fastq.gz file."; exit 1; fi
-  # if [ ! -f $outdir/$name/$name.aligned.fa ]; then
-    # snippy --prefix $name --cpus $threads --outdir $outdir/$name --ref $reference --peil $file || (echo "Alignment failed! Check if $filename is correct fastq file." && exit 1)
-  # else
-    # echo "$name reads have already been aligned. Skipping this step..."
-  # fi
-# done
-exit_on_end=false
-#if [ "$hpc" == "true" ]
-#then
-#  for file in `find -L $reads_dir -type f`
-#  do
-#    name=`get_samplenames.py $file`
-#    if [ ! -f $outdir/$name/$name.aligned.fa ]; then
-#      exit_on_end=true
-#      if [ "${#name}" -gt 15 ]
-#      then
-#        short_name=${name:0:15}
-#      else
-#        short_name=$name
-#      fi
-#      sed "s~xxxshortjobnamexxx~$short_name~g" $base_path/scripts/qsub_multisnippy.sh | sed "s~xxxbasepathxxx~$base_path~g" | sed "s~xxxfilexxx~$file~g" | sed "s~xxxoutdirxxx~$outdir~g" | sed "s~xxxreferencexxx~$reference~g" > $temp/qsub_$name.sh
-#      qsub $temp/qsub_$name.sh
-#      rm -rf $temp/qsub_$name.sh
-#    fi
-#  done
-#else
-  parallel -j $threads --progress multisnippy.sh {} $outdir $reference ::: `find -L $reads_dir -type f`
-#fi
+parallel -j $threads --progress multisnippy.sh {} $outdir $reference ::: "${snippy_not_done[@]}"
+
 
 if [ "$exit_on_end" == "true" ]
 then
@@ -118,71 +108,59 @@ else
   echo "Total snp count matrix has already been generated. Skipping this step..."
 fi
 
-if [ ! -f $outdir/core.final_tree.tre ]; then
+if [ ! -f $outdir/filtered_core_aln.final_tree.tre ]; then
   echo "Running recombination filter..."
-  run_gubbins.py -i 10 -f 15 -p core -c $threads core.full.trimmed.aln || gubbins_fail=true
+  source activate gubbins-env
+  run_gubbins.py -v -i 10 -p filtered_core_aln -c $threads core.full.trimmed.aln || gubbins_fail=true
   if [ "$gubbins_fail" == true ]; then
     echo "gubbins using RAxML only method has failed. Retrying with fastree for first iteration."
     gubbins_fail=false
     rm -rf core.full.trimmed.aln.*
-    run_gubbins.py -i 10 -f 15 --tree_builder hybrid -p core -c $threads core.full.trimmed.aln || gubbins_fail=true
+    run_gubbins.py -v -i 10 --tree_builder hybrid -p filtered_core_aln -c $threads core.full.trimmed.aln || gubbins_fail=true
   fi
   if [ "$gubbins_fail" == true ]; then
     echo "gubbins using hybrid RAxML/FastTree method has failed. Retrying with fastree for all iterations."
     gubbins_fail=false
     rm -rf core.full.trimmed.aln.*
-    run_gubbins.py -i 10 -f 15 --tree_builder fasttree -p core -c $threads core.full.trimmed.aln || (echo "Running gubbins using all methods have failed. Please examine your alignment or consider removing highly divergent sequences. Looking at total.snp_counts.stats is a good place to start..."; exit 1)
+    run_gubbins.py -v -i 10 --tree_builder fasttree -p filtered_core_aln -c $threads core.full.trimmed.aln || (echo "Running gubbins using all methods have failed. Please examine your alignment or consider removing highly divergent sequences. Looking at total.snp_counts.stats is a good place to start..."; exit 1)
   fi
+  source deactivate gubbins-env
 else
   echo "Recombination filtering by gubbins has already been done. Skipping this step..."
 fi
 
-if [ ! -f $outdir/core.recombination_predictions.pdf ]; then
-  gubbins_drawer.py -o core.recombination_predictions.pdf -t core.final_tree.tre core.recombination_predictions.embl || gubbins_drawer_fail=true
+if [ ! -f $outdir/filtered_core_aln.recombination_predictions.pdf ]; then
+  gubbins_drawer.py -o filtered_core_aln.recombination_predictions.pdf -t filtered_core_aln.final_tree.tre filtered_core_aln.recombination_predictions.embl || gubbins_drawer_fail=true
 else
   echo "Recombination prediction visualisation has already been generated. Skipping this step..."
 fi
 
-if [ ! -f $outdir/core.gubbins_filtered.aln ]; then
-  filter_recombinations.py core.recombination_predictions.gff core.full.trimmed.aln core.gubbins_filtered.aln || exit 1
+if [ ! -f $outdir/filtered_core_aln.gubbins_filtered.aln ]; then
+  filter_recombinations.py filtered_core_aln.recombination_predictions.gff core.full.trimmed.aln filtered_core_aln.gubbins_filtered.aln || exit 1
 else
   echo "Recombination filtered alignment has already been bulit. Skipping this step..."
 fi
 
-if [ ! -f $outdir/core.gubbins_filtered.snp_counts.txt ]; then
-  count_snps_in_core_alignment.py core.gubbins_filtered.aln core.gubbins_filtered.snp_counts.txt core.gubbins_filtered.snp_counts.stats $threads || count_snps_in_core_alignment_fail=true
+if [ ! -f $outdir/filtered_core_aln.gubbins_filtered.snp_counts.txt ]; then
+  count_snps_in_core_alignment.py filtered_core_aln.gubbins_filtered.aln filtered_core_aln.gubbins_filtered.snp_counts.txt filtered_core_aln.gubbins_filtered.snp_counts.stats $threads || count_snps_in_core_alignment_fail=true
 else
   echo "Core snp count matrix has already been generated. Skipping this step..."
 fi
 
-if [ ! -f $outdir/core.gubbins_filtered.trimmed.aln ]; then
-  remove_gaps_Ns.py core.gubbins_filtered.aln $threads core.gubbins_filtered.trimmed.aln
-else
-  echo "Gap filtered alignment has already been bulit. Skipping this step..."
-fi
-
-
-if [ ! -f $outdir/RAxML_bestTree.core.gubbins_filtered.trimmed ]; then
-
-  raxmlHPC-PTHREADS -T $threads -m GTRGAMMA -p 64855 -# 20 -s core.gubbins_filtered.trimmed.aln -n core.gubbins_filtered.trimmed || exit 1
-else
-  echo "Initial RAxML tree has already been generated. Skipping this step..."
-fi
-
-if [ ! -f $outdir/RAxML_bootstrap.core.gubbins_filtered.trimmed.bootstrap ]; then
-  raxmlHPC-PTHREADS -T $threads -m GTRGAMMA -p 64855 -b 64855 -# 100 -s core.gubbins_filtered.trimmed.aln -n core.gubbins_filtered.trimmed.bootstrap || exit 1
+if [ ! -f $outdir/RAxML_bootstrap.filtered_core_aln.bootstrap ]; then
+  raxmlHPC-PTHREADS -T $threads -m GTRCAT -V -p 64855 -b 64855 -# 100 -s filtered_core_aln.filtered_polymorphic_sites.fasta -n filtered_core_aln.bootstrap || exit 1
 else
   echo "Bootstrap RAxML trees have already been generated. Skipping this step..."
 fi
 
-if [ ! -f $outdir/RAxML_bipartitionsBranchLabels.core.gubbins_filtered.trimmed.final ]; then
-  raxmlHPC-PTHREADS -T $threads -m GTRGAMMA -p 64855 -f b -t RAxML_bestTree.core.gubbins_filtered.trimmed -z RAxML_bootstrap.core.gubbins_filtered.trimmed.bootstrap -n core.gubbins_filtered.trimmed.final || exit 1
+if [ ! -f $outdir/RAxML_bipartitionsBranchLabels.filtered_core_aln.final ]; then
+  raxmlHPC-PTHREADS -T $threads -m GTRCAT -V -p 64855 -f b -t filtered_core_aln.final_tree.tre -z RAxML_bootstrap.filtered_core_aln.bootstrap -n filtered_core_aln.final || exit 1
 else
   echo "Final RAxML tree has already been generated. Skipping this step..."
 fi
 
-if [ ! -f $outdir/RAxML_rootedTree.core.gubbins_filtered.trimmed.finalrooted ]; then
-  raxmlHPC-PTHREADS -T $threads -m GTRGAMMA -f I -t RAxML_bipartitionsBranchLabels.core.gubbins_filtered.trimmed.final -n core.gubbins_filtered.trimmed.finalrooted || exit 1
+if [ ! -f $outdir/RAxML_rootedTree.filtered_core_aln.finalrooted ]; then
+  raxmlHPC-PTHREADS -T $threads -m GTRCAT -V -f I -t RAxML_bipartitionsBranchLabels.filtered_core_aln.final -n filtered_core_aln.finalrooted || exit 1
 else
   echo "Final RAxML rooted tree has already been generated. Skipping this step..."
 fi

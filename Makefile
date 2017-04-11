@@ -1,6 +1,7 @@
 MC = .mc
 BASE_BIN = .mc/bin
 PY2 = .mc/envs/py2
+export MINICONDA := $(abspath ${MC})
 export BIN_PATH := $(abspath ${BASE_BIN})
 scripts = scripts
 export SCRIPTS := $(abspath ${scripts})
@@ -44,7 +45,8 @@ ${BASE_BIN}/python:
 	bash mc.sh -bf -p ${MC}
 	.mc/bin/conda config --system --add channels r --add channels bioconda --add channels conda-forge
 	.mc/bin/conda config --system --set always_yes True
-	conda install -y python=3.5 conda-build nose reportlab dendropy certifi pillow libgcc zlib fasttree raxml biopython=1.65 bcbiogff pandas sra-tools
+	conda install -y python=3.5 fasttree raxml biopython bcbiogff pandas sra-tools
+	conda create -yn gubbins-env python=3.5 autoconf automake libtool pkg-config nose reportlab dendropy certifi pillow libgcc zlib fasttree raxml biopython=1.65 
 	chmod 755 run.sh run-hpc.sh ${SCRIPTS}/*
 	rm -fr mc.sh
 
@@ -55,7 +57,10 @@ ${BASE_BIN}/snippy: ${BASE_BIN}/python
 	sed -i 's~../vcflib/bin/vcfstreamsort~vcfstreamsort~g' ${BASE_BIN}/freebayes-parallel
 
 ${BASE_BIN}/run_gubbins.py: ${BASE_BIN}/python ${BASE_BIN}/snippy
-	conda install --use-local ${SCRIPTS}/gubbins-2.2.0-0.tar.bz2
+	git clone https://github.com/sanger-pathogens/gubbins.git
+	source activate gubbins-env && cd gubbins && autoreconf -i && ./configure --exec-prefix=${MINICONDA} && make && make install && cd python && python setup.py install
+	mv gubbins/python/scripts/gubbins_drawer.py .mc/bin
+	rm -rf gubbins
 
 ${PY2}/bin/python: ${BASE_BIN}/python
 	conda create -n py2 python=2
