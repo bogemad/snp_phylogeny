@@ -27,16 +27,12 @@ ifneq ($(filter arm%,$(UNAME_P)),)
 	CCFLAGS += -D ARM
 endif
 
-all: ${BASE_BIN}/python ${BASE_BIN}/snippy ${BASE_BIN}/run_gubbins.py
-
-mc_only: ${BASE_BIN}/python
-
-after_mc_only: ${BASE_BIN}/snippy ${BASE_BIN}/run_gubbins.py
+all: ${BASE_BIN}/python ${BASE_BIN}/run_gubbins.py
 
 clean: 
 	rm -rf ${MC} mc.sh
 
-.PHONY: all clean mc_only after_mc_only
+.PHONY: all clean 
 .SECONDARY:
 
 ${BASE_BIN}/python:
@@ -45,22 +41,17 @@ ${BASE_BIN}/python:
 	bash mc.sh -bf -p ${MC}
 	.mc/bin/conda config --system --add channels r --add channels bioconda --add channels conda-forge
 	.mc/bin/conda config --system --set always_yes True
-	conda install -y python=3.5 fasttree raxml biopython bcbiogff pandas sra-tools
+	conda install -y fasttree raxml biopython bcbiogff pandas sra-tools snippy
+	cp -a ${SCRIPTS}/vcffirstheader ${BASE_BIN}
+	sed -i 's~../vcflib/scripts/vcffirstheader~vcffirstheader~g' ${BASE_BIN}/freebayes-parallel
+	sed -i 's~../vcflib/bin/vcfstreamsort~vcfstreamsort~g' ${BASE_BIN}/freebayes-parallel
 	conda create -yn gubbins-env python=3.5 autoconf automake libtool pkg-config nose reportlab dendropy certifi pillow libgcc zlib fasttree raxml biopython=1.65 
 	chmod 755 run.sh run-hpc.sh ${SCRIPTS}/*
 	rm -fr mc.sh
 
-${BASE_BIN}/snippy: ${BASE_BIN}/python
-	conda install snippy
-	cp -a ${SCRIPTS}/vcffirstheader ${BASE_BIN}
-	sed -i 's~../vcflib/scripts/vcffirstheader~vcffirstheader~g' ${BASE_BIN}/freebayes-parallel
-	sed -i 's~../vcflib/bin/vcfstreamsort~vcfstreamsort~g' ${BASE_BIN}/freebayes-parallel
-
-${BASE_BIN}/run_gubbins.py: ${BASE_BIN}/python ${BASE_BIN}/snippy
-	git clone https://github.com/sanger-pathogens/gubbins.git
-	source activate gubbins-env && cd gubbins && autoreconf -i && ./configure --exec-prefix=${MINICONDA} && make && make install && cd python && python setup.py install
-	mv gubbins/python/scripts/gubbins_drawer.py .mc/bin
-	rm -rf gubbins
+${BASE_BIN}/run_gubbins.py: ${BASE_BIN}/python
+	bash scripts/install_gubbins.sh ${MINICONDA}
+	echo "Installation complete."
 
 ${PY2}/bin/python: ${BASE_BIN}/python
 	conda create -n py2 python=2

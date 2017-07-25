@@ -3,6 +3,7 @@
 file=$1
 outdir=$2
 reference=$3
+threads=$4
 conda_bin_path=`readlink -f .mc/bin`
 scripts_path=`readlink -f scripts`
 PATH=$conda_bin_path:$scripts_path:$PATH
@@ -18,9 +19,9 @@ fi
 read_format=`id_read_format.py $file`
 
 if [ $read_format == "fastq" ]; then
-	snippy --prefix $name --cpus 1 --outdir $outdir/$name --ref $reference --peil $file || (echo "Alignment failed! Check if $file is correct fastq file." && exit 1)
+	snippy --cpus $threads --prefix $name --outdir $outdir/$name --ref $reference --peil $file || (echo "Alignment failed! Check if $file is correct fastq file." && exit 1)
 elif [ $read_format == "fasta" ]; then
-	snippy --prefix $name --cpus 1 --outdir $outdir/$name --ref $reference --ctgs $file || (echo "Alignment failed! Check if $file is correct fasta file." && exit 1)
+	snippy --cpus $threads --prefix $name --outdir $outdir/$name --ref $reference --ctgs $file || (echo "Alignment failed! Check if $file is correct fasta file." && exit 1)
 else
 	echo "Cannot determine format of read file: $file. 
 	Please ensure it is either fastq (for raw sequencing reads) or fasta (for assembled genomes)"
