@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, re, shutil, subprocess, snp_phylo_utils, random
+import sys, os, re, shutil, subprocess, snp_phylo_utils, random, datetime
 from contextlib import contextmanager
 
 @contextmanager
@@ -47,97 +47,115 @@ def remove_degenerate_bases(reference, refsuff, outdir, threads):
 		print("Reference sequence has already been processed. Skipping this step...")
 
 
-def run_snippy(read_path, threads, outdir, reference):
+
+
+
+
+def run_snippy(read_path, threads, outdir, reference, log_file):
 	name = snp_phylo_utils.get_samplename(read_path)
 	read_format = snp_phylo_utils.id_read_format(read_path)
-	if read_format == 'fastq':
-		try:
-			subprocess.run(['snippy', '--cpus', str(threads), '--prefix', name, '--outdir', os.path.join(outdir, name), '--ref', reference, '--peil', read_path], check = True, stderr=subprocess.STDOUT)
-		except Exception as e:
-			print(e)
-			print("Error running snippy on fastq reads file: {}. Please check your files and error output.".format(os.path.basename(read_path)))
-			raise
-	else:
-		try:
-			subprocess.run(['snippy', '--cpus', str(threads), '--prefix', name, '--outdir', os.path.join(outdir, name), '--ref', reference, '--ctgs', read_path], check = True, stderr=subprocess.STDOUT)
-		except Exception as e:
-			print(e)
-			print("Error running snippy on fasta assembled genome file: {}. Please check your files and error output.".format(os.path.basename(read_path)))
-			raise
+	with open(log_file,'w') as log:
+		print("Running snippy on sample {}".format(name))
+		if read_format == 'fastq':
+			try:
+				subprocess.run(['snippy', '--cpus', str(threads), '--prefix', name, '--outdir', os.path.join(outdir, name), '--ref', reference, '--peil', read_path], check = True, stdout=log, stderr=subprocess.STDOUT)
+			except Exception as e:
+				print(e)
+				print("Error running snippy on fastq reads file: {}. Please check your files and error output.".format(os.path.basename(read_path)))
+				raise
+		elif read_format == 'fasta':
+			try:
+				subprocess.run(['snippy', '--cpus', str(threads), '--prefix', name, '--outdir', os.path.join(outdir, name), '--ref', reference, '--ctgs', read_path], check = True, stdout=log, stderr=subprocess.STDOUT)
+			except Exception as e:
+				print(e)
+				print("Error running snippy on fasta assembled genome file: {}. Please check your files and error output.".format(os.path.basename(read_path)))
+				raise
+		elif read_format == 'bam':
+			snp_phylo_utils.custom_snippy(threads, name, outdir, reference, read_path, read_format)
 
 
-def hpc_run(read_path, outdir, reference):
-	run_snippy(read_path, 1, outdir, reference)
+
+
+def hpc_run(read_path, outdir, reference, log_file):
+	run_snippy(read_path, 1, outdir, reference, log_file)
 	sys.exit(0)
 
 
-def run_snippy_core(outdir, id_threshold, sample_names):
+def run_snippy_core(outdir, id_threshold, sample_names, log):
 	if os.path.isfile(os.path.join(outdir, "core.full.aln")) == False:
+		print("Building core alignment with snippy-core...")
 		with cd(outdir):
-			subprocess.run((["snippy-core"]+sample_names), check = True, stderr=subprocess.STDOUT)
+			subprocess.run((["snippy-core"]+sample_names), check = True, stderr=subprocess.STDOUT, stdout=log)
 			os.makedirs("../excluded_sequences/poor_ref_alignment", exist_ok=True)
 			bad_seqs = snp_phylo_utils.ditch_distant_sequences('core.txt', id_threshold)
-			subprocess.run(["snippy-core"]+[x for x in sample_names if (x in bad_seqs) == False], check = True, stderr=subprocess.STDOUT)
+			subprocess.run(["snippy-core"]+[x for x in sample_names if (x in bad_seqs) == False], check = True, stderr=subprocess.STDOUT, stdout=log)
 	else:
 		print("Core alignment has already been generated. Skipping this step...")
 
-def Ns2gaps(outdir, threads):
+def Ns2gaps(outdir, threads, log):
 	if os.path.isfile(os.path.join(outdir, "core.full.trimmed.aln")) == False:
 		with cd(outdir):
 			snp_phylo_utils.replace_Ns_with_gaps("core.full.aln", threads, "core.full.trimmed.aln")
 	else:
 		print("Core alignment has already been trimmed. Skipping this step...")
 
-def count_total_snps(outdir, threads):
+def count_total_snps(outdir, threads, log):
 	if os.path.isfile(os.path.join(outdir, "total.snp_counts.txt")) == False:
+		print("Counting total snps...")
 		with cd(outdir):
-			snp_phylo_utils.count_snps('core.full.trimmed.aln', 'total.snp_counts.txt', 'total.snp_counts.stats', threads)
+			snp_phylo_utils.count_snps('core.full.trimmed.aln', 'total.snp_counts.txt', 'total.snp_counts.stats', threads, log)
 	else:
 		print("Total snp count matrix has already been generated. Skipping this step...")
 
-def filter_recombinant_positions(outdir, threads):
+def filter_recombinant_positions(outdir, threads, log):
 	if os.path.isfile(os.path.join(outdir, "filtered_core_aln.final_tree.tre")) == False:
+		print("Filtering recombinants with gubbins...")
 		with cd(outdir):
-			subprocess.run(["bash","../scripts/filter_recomb.sh",str(threads)], check = True, stderr=subprocess.STDOUT)
+			subprocess.run(["bash","../scripts/filter_recomb.sh",str(threads)], check = True, stderr=subprocess.STDOUT, stdout=log)
 	else:
 		print("Recombination filtering by gubbins has already been done. Skipping this step...")
 
-def visualise_recombination_predictions(outdir):
+def visualise_recombination_predictions(outdir, log):
 	if os.path.isfile(os.path.join(outdir, "filtered_core_aln.recombination_predictions.pdf")) == False:
+		print("Generating predicted recombination figures...")
 		with cd(outdir):
-			subprocess.run(["bash","../scripts/visualise_recomb.sh"], check = True, stderr=subprocess.STDOUT)
+			subprocess.run(["bash","../scripts/visualise_recomb.sh"], check = True, stderr=subprocess.STDOUT, stdout=log)
 	else:
 		print("Recombination prediction visualisation has already been generated. Skipping this step...")
 
-def count_core_snps(outdir, threads):
+def count_core_snps(outdir, threads, log):
 	if os.path.isfile(os.path.join(outdir, "filtered_core_aln.gubbins_filtered.snp_counts.txt")) == False:
+		print("Counting core snps...")
 		with cd(outdir):
-			snp_phylo_utils.count_snps('filtered_core_aln.filtered_polymorphic_sites.fasta', 'filtered_core_aln.gubbins_filtered.snp_counts.txt', 'filtered_core_aln.gubbins_filtered.snp_counts.stats', threads)
+			snp_phylo_utils.count_snps('filtered_core_aln.filtered_polymorphic_sites.fasta', 'filtered_core_aln.gubbins_filtered.snp_counts.txt', 'filtered_core_aln.gubbins_filtered.snp_counts.stats', threads, log)
 	else:
 		print("Core snp count matrix has already been generated. Skipping this step...")
 
-def bootstrap_tree(outdir, threads):
+def bootstrap_tree(outdir, threads, log):
 	if os.path.isfile(os.path.join(outdir, "RAxML_bootstrap.filtered_core_aln.bootstrap")) == False:
+		print("Conducting bootstrap analysis...")
 		with cd(outdir):
-			subprocess.run(["raxmlHPC-PTHREADS","-T",str(threads),"-m","GTRCAT","-V","-p",str(random.randint(10000,99999)),"-b",str(random.randint(10000,99999)),"-#","100","-s","filtered_core_aln.filtered_polymorphic_sites.fasta","-n","filtered_core_aln.bootstrap"], check = True, stderr=subprocess.STDOUT)
+			subprocess.run(["raxmlHPC-PTHREADS","-T",str(threads),"-m","GTRCAT","-V","-p",str(random.randint(10000,99999)),"-b",str(random.randint(10000,99999)),"-#","100","-s","filtered_core_aln.filtered_polymorphic_sites.fasta","-n","filtered_core_aln.bootstrap"], check = True, stderr=subprocess.STDOUT, stdout=log)
 	else:
 		print("Bootstrap RAxML trees have already been generated. Skipping this step...")
 
-def gen_final_tree(outdir, threads):
+def gen_final_tree(outdir, threads, log):
 	if os.path.isfile(os.path.join(outdir, "RAxML_bipartitionsBranchLabels.filtered_core_aln.final")) == False:
+		print("Building final tree...")
 		with cd(outdir):
-			subprocess.run(["raxmlHPC-PTHREADS","-T",str(threads),"-m","GTRCAT","-V","-p",str(random.randint(10000,99999)),"-f","b","-t","filtered_core_aln.final_tree.tre","-z","RAxML_bootstrap.filtered_core_aln.bootstrap","-n","filtered_core_aln.final"], check = True, stderr=subprocess.STDOUT)
+			subprocess.run(["raxmlHPC-PTHREADS","-T",str(threads),"-m","GTRCAT","-V","-p",str(random.randint(10000,99999)),"-f","b","-t","filtered_core_aln.final_tree.tre","-z","RAxML_bootstrap.filtered_core_aln.bootstrap","-n","filtered_core_aln.final"], check = True, stderr=subprocess.STDOUT, stdout=log)
 	else:
 		print("Final RAxML tree has already been generated. Skipping this step...")
 
-def gen_final_rooted_tree(outdir, threads):
+def gen_final_rooted_tree(outdir, threads, log):
 	if os.path.isfile(os.path.join(outdir, "RAxML_rootedTree.filtered_core_aln.finalrooted")) == False:
+		print("Rooting final tree...")
 		with cd(outdir):
-			subprocess.run(["raxmlHPC-PTHREADS","-T",str(threads),"-m","GTRCAT","-V","-f","I","-t","RAxML_bipartitionsBranchLabels.filtered_core_aln.final","-n","filtered_core_aln.finalrooted"], check = True, stderr=subprocess.STDOUT)
+			subprocess.run(["raxmlHPC-PTHREADS","-T",str(threads),"-m","GTRCAT","-V","-f","I","-t","RAxML_bipartitionsBranchLabels.filtered_core_aln.final","-n","filtered_core_aln.finalrooted"], check = True, stderr=subprocess.STDOUT, stdout=log)
 	else:
 		print("Final RAxML rooted tree has already been generated. Skipping this step...")
 
-def cleanup(outdir):
+def cleanup(outdir, log):
 	with cd(outdir):
 		os.mkdir("intermediate_files")
 		i_files = ["core.full.trimmed.aln",
@@ -225,6 +243,7 @@ def cleanup(outdir):
 
 
 def main():
+	log_file = "snp_phylogeny_{}.log".format(datetime.datetime.now().strftime("%Y-%m-%d_%H%M"))
 	base_path = os.path.abspath(sys.argv[1])
 	reads_dir = os.path.abspath(sys.argv[2])
 	reference = os.path.abspath(sys.argv[3])
@@ -235,14 +254,13 @@ def main():
 	# for x in sys.argv:
 		# print(x)
 	if sys.argv[8] != 'all':
-		hpc_run(sys.argv[8], outdir, reference)
+		hpc_run(sys.argv[8], outdir, reference, log_file)
 	temp_dir = os.path.join(base_path, '.temp')
 	remove_results_without_reads(base_path, reads_dir)
 	reference, refsuff = check_ref(reference)
 	remove_degenerate_bases(reference, refsuff, outdir, threads)
 	reference = os.path.join(outdir, "reference{}".format(refsuff))
 	sample_names = [ snp_phylo_utils.get_samplename(path) for path in os.listdir(reads_dir) if os.path.isfile(os.path.join(reads_dir, path)) ]
-	print(sample_names)
 	snippy_not_done = [ os.path.join(reads_dir, path) for path in os.listdir(reads_dir) if (snp_phylo_utils.get_samplename(path) in os.listdir(outdir)) == False ]
 	if len(snippy_not_done) != 0:
 		if hpc == 'true':
@@ -252,17 +270,18 @@ def main():
 			sys.exit(0)
 		else:
 			for read_path in snippy_not_done:
-				run_snippy(read_path, threads, outdir, reference)
-	run_snippy_core(outdir, id_threshold, sample_names)
-	Ns2gaps(outdir, threads)
-	count_total_snps(outdir, threads)
-	filter_recombinant_positions(outdir, threads)
-	visualise_recombination_predictions(outdir)
-	count_core_snps(outdir, threads)
-	bootstrap_tree(outdir, threads)
-	gen_final_tree(outdir, threads)
-	gen_final_rooted_tree(outdir, threads)
-	cleanup(outdir)
+				run_snippy(read_path, threads, outdir, reference, log_file)
+	with open(log_file, 'w') as log:
+		run_snippy_core(outdir, id_threshold, sample_names, log)
+		Ns2gaps(outdir, threads, log)
+		count_total_snps(outdir, threads, log)
+		filter_recombinant_positions(outdir, threads, log)
+		visualise_recombination_predictions(outdir, log)
+		count_core_snps(outdir, threads, log)
+		bootstrap_tree(outdir, threads, log)
+		gen_final_tree(outdir, threads, log)
+		gen_final_rooted_tree(outdir, threads, log)
+		cleanup(outdir, log)
 
 if __name__ == '__main__':
 	main()

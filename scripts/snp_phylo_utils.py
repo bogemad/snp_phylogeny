@@ -15,6 +15,17 @@ import numpy as np
 import pandas as pd
 import operator
 from collections import defaultdict
+from BCBio import GFF
+from contextlib import contextmanager
+
+@contextmanager
+def cd(newdir):
+	prevdir = os.getcwd()
+	os.chdir(os.path.expanduser(newdir))
+	try:
+		yield
+	finally:
+		os.chdir(prevdir)
 
 def parse_sequence_file(sequence_file):
 	fasta_parse = [x for x in SeqIO.parse(sequence_file,'fasta')]
@@ -36,6 +47,18 @@ def write_new_sequence_file(cleaned_sequences, annotations_present, outfile):
 	elif annotations_present == False:
 		outfile = outfile + ".fasta"
 		null = SeqIO.write(cleaned_sequences, outfile, "fasta")
+
+def write_new_fasta_gff(sequences, annotations_present, outfile):
+	print("Writing sequence to %s" % outfile)
+	if annotations_present == True:
+		outgff = open((outfile + ".gff"),'w')
+		gff_count = GFF.write(sequences, outgff)
+	else:
+		with open((outfile+".gff"),'w') as empty_gff:
+			gff_count = 0
+	outfa = outfile + ".fa"
+	fa_count = SeqIO.write(sequences, outfa, "fasta")
+	return fa_count, gff_count
 
 
 def check_degenerate(base):
@@ -76,8 +99,12 @@ def clean_sequence(results_list, sequence):
 
 def id_read_format(file):
 	if os.path.splitext(file)[1] == ".gz":
+		if os.path.splitext(os.path.splitext(file)[0])[1] == ".bam":
+			return "bam"
 		handle = gzip.open(file,'rt')
 	else:
+		if os.path.splitext(file)[1] == ".bam":
+			return "bam"
 		handle = open(file)
 	for line in handle:
 		if line.strip() == "":
@@ -96,13 +123,13 @@ def get_samplename(filename):
 	name, ext = os.path.splitext(basename)
 	if ext == ".gz":
 		name, ext = os.path.splitext(name)
-	if ext == ".fastq" or ext == ".fq" or ext == ".fasta" or ext == ".fa" or ext == ".fna" or ext == ".fsa":
+	if ext == ".fastq" or ext == ".fq" or ext == ".fasta" or ext == ".fa" or ext == ".fna" or ext == ".fsa" or ext == '.bam':
 		name2, ext2 = os.path.splitext(name)
 		if ext2 == ".lf":
 			name = name2
 		return name
 	else:
-		print("Failed to determine samplename for file: {}. Check if this is a fastq or fastq.gz file.".format(basename))
+		print("Failed to determine samplename for file: {}. Check if this is in bam, fasta, fastq or a gzipped version of these formats.".format(basename))
 		sys.exit(1)
 
 
@@ -117,7 +144,7 @@ def submit_hpc_script(temp_dir, read_path, outdir, reference, threads, mem, queu
 		sub_file.write("#PBS -e {}/logs/snp_phylogeny.err\n\n".format(base_path))
 		sub_file.write("cd {}\n".format(base_path))
 		sub_file.write("python {0}/scripts/run.py {0} {1} {2} {3} {4} true {5} {6} &> {}/logs/{7}_snippy.log\n".format(base_path, os.path.dirname(read_path), reference, outdir, threads, id_threshold, read_path, get_samplename(read_path)))
-	subprocess.run(["qsub", "-V", os.path.join(temp_dir,"qsub.sh")], check=True, stderr=subprocess.STDOUT)
+	subprocess.run(["qsub", "-V", os.path.join(temp_dir,"qsub.sh")], check=True)
 	os.remove(os.path.join(temp_dir,"qsub.sh"))
 
 def ditch_distant_sequences(core_data, id_threshold):
@@ -186,31 +213,31 @@ def multi_import(chunk_list, threads):
 	return results
 
 def multijob(input):
-	query_id, subject_id, query, subject = input
+	query_id, subject_id, query, subject, log = input
 	snps = int(np.count_nonzero(query != subject))
 	print("{} SNPs found between isolates {} and {}".format(snps, query_id, subject_id))
 	return (query_id, subject_id, snps)
 
 
-def multirun(input_list, threads):
+def multirun(input_list, threads, log):
 	p = multiprocessing.Pool(threads)
 	result = p.map_async(multijob,input_list,chunksize=1)
 	prev_jobs_remaining = len(input_list)
 	while not result.ready():
 		jobs_remaining = result._number_left
 		if jobs_remaining != prev_jobs_remaining:
-			print("{} of {} sequence pairs remaining to be compaired".format(result._number_left, len(input_list)))
+			log.write("{} of {} sequence pairs remaining to be compaired".format(result._number_left, len(input_list)))
 		prev_jobs_remaining = jobs_remaining
 	results_list = result.get(999999999999999)
 	p.close()
 	p.join()
 	return results_list
 
-def gen_input_list(array, id_list):
+def gen_input_list(array, id_list, log):
 	input_list = []
 	for i, query in enumerate(array):
 		for j, subject in enumerate(array):
-			input_list.append((id_list[i], id_list[j], query, subject))
+			input_list.append((id_list[i], id_list[j], query, subject, log))
 	return input_list
 
 def sort_results(results):
@@ -277,23 +304,23 @@ def replace_Ns_with_gaps(alignment_file, threads, outfile):
 	AlignIO.write(reconstruct_alignment(array,aln), outfile, "fasta")
 	print("Done.")
 
-def count_snps(alignment_file, outfile, statsfile, threads):
-	print("Importing alignment...")
+def count_snps(alignment_file, outfile, statsfile, threads, log):
+	log.write("Importing alignment...")
 	aln = AlignIO.read(alignment_file,"fasta")
-	print("Cleaning alignment of gaps...")
+	log.write("Cleaning alignment of gaps...")
 	array = import_array(aln, threads)
 	# array2 = np.array([list(rec) for rec in aln], np.character)
 	# validate_multi_import(array, array2)
 	id_list = [x.id for x in aln]
-	input_list = gen_input_list(array, id_list)
-	results = multirun(input_list, threads)
-	print("Sorting results...")
+	input_list = gen_input_list(array, id_list, log)
+	results = multirun(input_list, threads, log)
+	log.write("Sorting results...")
 	snp_count_d = sort_results(results)
 	df = generate_data_frame(snp_count_d,id_list)
 	stats = df.describe()
 	stats.to_csv(statsfile, sep="\t")
 	df.to_csv(outfile, sep="\t")
-	print("Done.")
+	log.write("Done.")
 
 
 def remove_degenerate_bases(sequence_file, outfile, threads):
@@ -310,3 +337,70 @@ def remove_degenerate_bases(sequence_file, outfile, threads):
 		p.join()
 		cleaned_sequences.append(clean_sequence(results_list, sequence))
 	write_new_sequence_file(cleaned_sequences, annotations_present, outfile)
+
+def custom_snippy(threads, prefix, outdir, reference, read_path, read_format):
+	sample_outdir = os.path.join(outdir, prefix)
+	if os.path.isdir(sample_outdir) == False:
+		print("Creating folder: {}".format(sample_outdir))
+		os.mkdir(sample_outdir)
+	else:
+		print("Output folder {} already exists. Skipping this step...".format(prefix))
+	with cd(sample_outdir):
+		os.mkdir("reference")
+		print("Extracting FASTA and GFF from reference.")
+		sequences, annotations_present = parse_sequence_file(reference)
+		fa_count, gff_count = write_new_fasta_gff(sequences, annotations_present, "reference/ref")
+		print("Wrote {} sequences to ref.fa".format(fa_count))
+		print("Wrote {} features to ref.gff".format(gff_count))
+		ref_size = sum(len(x) for x in sequences)
+		chunk_size = max( 1000, int( ref_size / (threads * 4) ))
+		print("Freebayes will process {} chunks of {} bp, {} chunks at a time.".format((threads*4), chunk_size, threads))
+		subprocess.run(["samtools", "faidx", "reference/ref.fa"], check=True)
+		if read_format == 'bam':
+			if os.path.splitext(os.path.basename(read_path))[1] == ".gz":
+				print("Extracting compressed bam file.")
+				bgzipped = subprocess.Popen(["bgzip", "-dc", read_path], stdout=subprocess.PIPE)
+				output = subprocess.run(["samtools", "sort", "-O", "bam", "-o", (prefix+".bam"), "-@", str(threads)], check=True)
+				bgzipped.wait()
+			else:
+				print("Copying bam to output folder.")
+				subprocess.run(["samtools", "sort", "-O", "bam", "-o", (prefix+".bam"), "-@", str(threads), read_path], check=True)
+		# else:
+			# Add extra read mapping tools here
+			#subprocess.run(["bwa index $refdir/ref.fa",
+			#"mkdir $refdir/genomes && cp -f $refdir/ref.fa $refdir/genomes/ref.fa",
+			#"mkdir $refdir/ref && bgzip -c $refdir/ref.gff > $refdir/ref/genes.gff.gz",
+			#"(bwa mem $bwaopt -t $cpus $refdir/ref.fa @reads"
+			#." | samtools view -@ $cpus $stv_opt -S -b -u -T $refdir/ref.fa -"
+			#." | samtools sort -O bam -o $prefix.bam -@ $cpus -)",
+		subprocess.run(["samtools", "index", (prefix+".bam")], check=True)
+		with open("{}.depth.gz".format(prefix), 'wb') as file:
+			depth = subprocess.Popen(["samtools", "depth", "-q", "20", (prefix+".bam")], stdout=subprocess.PIPE)
+			output = subprocess.run(["bgzip"], stdin=depth.stdout, stdout=file, check=True)
+			depth.wait()
+		subprocess.run(["tabix", "-s", "1", "-b", "2", "-e", "2", "{}.depth.gz".format(prefix)], check=True)
+		with open("reference/ref.txt", 'w') as reftxt:
+			subprocess.run(["fasta_generate_regions.py", "reference/ref.fa.fai", str(chunk_size)], stdout=reftxt, check=True)
+		with open("{}.raw.vcf".format(prefix),'w') as raw_vcf:
+			subprocess.run(["freebayes-parallel", "reference/ref.txt", str(threads), "-p", "1", "-q", "20", "-m", "60", "--min-coverage", "10", "-V", "-f", "reference/ref.fa", (prefix+".bam")], stdout=raw_vcf, check=True)
+		with open("{}.vcf".format(prefix),'w') as filt_vcf:
+			subprocess.run(["snippy-vcf_filter", "--minqual", "10", "--mincov", "10", "--minfrac", "0.9", "{}.raw.vcf".format(prefix)], stdout=filt_vcf, check=True)
+		with open("{}.vcf.gz".format(prefix),'w') as filt_vcf_gz:
+			subprocess.run(["bgzip", "-c", "{}.vcf".format(prefix)], stdout=filt_vcf_gz, check=True)
+		subprocess.run(["tabix", "-p", "vcf", "{}.vcf.gz".format(prefix)], check=True)
+		with open("{}.tab".format(prefix),'w') as tab:
+			subprocess.run(["snippy-vcf_to_tab", "--gff", "reference/ref.gff", "--ref", "reference/ref.fa", "--vcf", "{}.vcf".format(prefix)], stdout=tab, check=True)
+		with open("{}.consensus.fa".format(prefix),'w') as consensus_fa, open("reference/ref.fa") as reffa:
+			subprocess.run(["vcf-consensus", "{}.vcf.gz".format(prefix)], stdin=reffa, stdout=consensus_fa, check=True)
+		with open("{}.filt.subs.vcf".format(prefix),'w') as filt_subs_vcf:
+			subprocess.run(["snippy-vcf_filter", "--subs", "{}.vcf".format(prefix)], stdout=filt_subs_vcf, check=True)
+		with open("{}.filt.subs.vcf.gz".format(prefix),'w') as filt_subs_vcf_gz:
+			subprocess.run(["bgzip", "-c", "{}.filt.subs.vcf".format(prefix)], stdout=filt_subs_vcf_gz, check=True)
+		subprocess.run(["tabix", "-p", "vcf", "{}.filt.subs.vcf.gz".format(prefix)], check=True)
+		with open("{}.consensus.subs.fa".format(prefix),'w') as consensus_subs_fa, open("reference/ref.fa") as reffa:
+			subprocess.run(["vcf-consensus", "{}.filt.subs.vcf.gz".format(prefix)], stdin=reffa, stdout=consensus_subs_fa, check=True)
+		
+
+
+
+
