@@ -26,15 +26,15 @@ def remove_results_without_reads(base_path, reads_dir):
 				print("{} has no associated read file and will be deleted.".format(x))
 				shutil.rmtree(abspath)
 
-def check_ref(reference):
-	if len(os.listdir(reference)) > 1:
+def check_ref(old_reference):
+	if len(os.listdir(old_reference)) > 1:
 		print("Please make sure there is only one reference file in raw_data/reference_sequence directory.")
 		sys.exit(1)
-	reference = os.path.join(reference, os.listdir(reference)[0])
-	if os.path.splitext(reference)[1] == ".gbk" or os.path.splitext(reference)[1] == ".gb" or os.path.splitext(reference)[1] == ".gbff":
-		return reference, ".gbk"
-	elif os.path.splitext(reference)[1] == ".fasta" or os.path.splitext(reference)[1] == ".fa" or os.path.splitext(reference)[1] == ".fna":
-		return reference, ".fasta"
+	new_reference = os.path.join(old_reference, os.listdir(old_reference)[0])
+	if os.path.splitext(new_reference)[1] == ".gbk" or os.path.splitext(new_reference)[1] == ".gb" or os.path.splitext(new_reference)[1] == ".gbff":
+		return new_reference, ".gbk"
+	elif os.path.splitext(new_reference)[1] == ".fasta" or os.path.splitext(new_reference)[1] == ".fa" or os.path.splitext(new_reference)[1] == ".fna":
+		return new_reference, ".fasta"
 	else:
 		print("Can't id reference sequence format. Ensure you have a Genbank (.gb, .gbk, .gbff) or Fasta (.fasta,.fa,.fna) formatted sequence.")
 		sys.exit(1)
@@ -227,7 +227,7 @@ def cleanup(outdir):
 def main():
 	base_path = os.path.abspath(sys.argv[1])
 	reads_dir = os.path.abspath(sys.argv[2])
-	reference = os.path.abspath(sys.argv[3])
+	old_reference = os.path.abspath(sys.argv[3])
 	outdir = os.path.abspath(sys.argv[4])
 	threads = int(sys.argv[5])
 	hpc = sys.argv[6]
@@ -235,10 +235,10 @@ def main():
 	# for x in sys.argv:
 		# print(x)
 	if sys.argv[8] != 'all':
-		hpc_run(sys.argv[8], outdir, reference)
+		hpc_run(sys.argv[8], outdir, old_reference)
 	temp_dir = os.path.join(base_path, '.temp')
 	remove_results_without_reads(base_path, reads_dir)
-	reference, refsuff = check_ref(reference)
+	reference, refsuff = check_ref(old_reference)
 	remove_degenerate_bases(reference, refsuff, outdir, threads)
 	reference = os.path.join(outdir, "reference{}".format(refsuff))
 	sample_names = [ snp_phylo_utils.get_samplename(path) for path in os.listdir(reads_dir) if os.path.isfile(os.path.join(reads_dir, path)) ]
@@ -246,9 +246,14 @@ def main():
 	snippy_not_done = [ os.path.join(reads_dir, path) for path in os.listdir(reads_dir) if (snp_phylo_utils.get_samplename(path) in os.listdir(outdir)) == False ]
 	if len(snippy_not_done) != 0:
 		if hpc == 'true':
+			mem = sys.argv[9]
+			alignment_ids = []
 			for i, read_path in enumerate(snippy_not_done):
-				snp_phylo_utils.submit_hpc_script(temp_dir, read_path, outdir, reference, threads, '4gb', 'smallq', base_path, id_threshold)
-			print("Alignment stage is now running as {} individual submitted jobs. Check the status of your jobs with the qstat command. \n\nWhen all of your jobs are completed (no jobs shown on qstat) they please restart this pipeline with the following command:\n\n{}\n\nto complete the analysis.".format((i+1),sys.argv[0]))
+				job_id = snp_phylo_utils.submit_hpc_script(temp_dir, read_path, outdir, reference, '1', '4gb', 'smallq', base_path, id_threshold)
+				alignment_ids.append(job_id)
+			print(alignment_ids)
+			snp_phylo_utils.submit_tree_hpc_script(temp_dir, read_path, outdir, old_reference, threads, mem, 'workq', base_path, id_threshold, alignment_ids)
+			# print("Alignment stage is now running as {} individual submitted jobs. Check the status of your jobs with the qstat command. \n\nWhen all of your jobs are completed (no jobs shown on qstat) they please restart this pipeline with the following command:\n\n{}\n\nto complete the analysis.".format((i+1),sys.argv[0]))
 			sys.exit(0)
 		else:
 			for read_path in snippy_not_done:

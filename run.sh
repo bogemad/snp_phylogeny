@@ -14,11 +14,12 @@ PATH=$conda_bin_path:$scripts_path:$PATH
 temp=`readlink -f .temp`
 mkdir -p $temp
 
-if [ -z "$3" ]
+if [ -z "$2" ]
 then
   hpc=false
 else
   hpc=$3
+  mem=$4
 fi
 id_threshold=$2
 
@@ -30,7 +31,7 @@ echo "Process threads = $threads"
 echo "Minimum reference coverage threshold = $id_threshold%"
 echo ""
 
-python $base_path/scripts/run.py $base_path $reads_dir $reference $outdir $threads $hpc $id_threshold all
+python $base_path/scripts/run.py $base_path $reads_dir $reference $outdir $threads $hpc $id_threshold all $mem
 
 # for dir in `find $base_path/analysis_results -maxdepth 1 -mindepth 1 -type d -exec basename {} \;`; do
 # if `ls $base_path/raw_data/reads/${dir}* &> /dev/null`; then

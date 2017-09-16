@@ -41,7 +41,7 @@ ${BASE_BIN}/python:
 	bash mc.sh -bf -p ${MC}
 	.mc/bin/conda config --system --add channels r --add channels bioconda --add channels conda-forge
 	.mc/bin/conda config --system --set always_yes True
-	conda install -y fasttree raxml biopython bcbiogff pandas sra-tools snippy
+	conda install -y bwa=0.7.12 samtools=1.3 freebayes=1.1 snpeff=4.3 fasttree raxml biopython bcbiogff pandas sra-tools snippy
 	cp -a ${SCRIPTS}/vcffirstheader ${BASE_BIN}
 	sed -i 's~../vcflib/scripts/vcffirstheader~vcffirstheader~g' ${BASE_BIN}/freebayes-parallel
 	sed -i 's~../vcflib/bin/vcfstreamsort~vcfstreamsort~g' ${BASE_BIN}/freebayes-parallel

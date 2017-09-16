@@ -8,4 +8,4 @@
 
 cd xxxbasepathxxx
 
-./run.sh xxxcpusxxx xxxthresholdxxx true &> xxxbasepathxxx/logs/snp_phylogeny.log
+./run.sh xxxcpusxxx xxxthresholdxxx true xxxmemxxx &> xxxbasepathxxx/logs/snp_phylogeny.log

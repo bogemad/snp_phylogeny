@@ -106,19 +106,41 @@ def get_samplename(filename):
 		sys.exit(1)
 
 
-def submit_hpc_script(temp_dir, read_path, outdir, reference, threads, mem, queue, base_path, threshold):
-	with open(os.path.join(temp_dir,"qsub.sh")) as sub_file:
+def submit_hpc_script(temp_dir, read_path, outdir, reference, threads, mem, queue, base_path, id_threshold):
+	with open(os.path.join(temp_dir,"qsub.sh"), 'w') as sub_file:
 		sub_file.write("#PBS -N {}\n".format(os.path.basename(read_path)[:15]))
+		sub_file.write("#PBS -l ncpus={}\n".format(threads))
+		sub_file.write("#PBS -l mem={}\n".format(mem))
+		sub_file.write("#PBS -l walltime=2:00:00\n")
+		sub_file.write("#PBS -q {}\n".format(queue))
+		sub_file.write("#PBS -o {}/logs/snp_phylogeny.out\n".format(base_path))
+		sub_file.write("#PBS -e {}/logs/snp_phylogeny.err\n\n".format(base_path))
+		sub_file.write("export PATH={}/.mc/bin:$PATH\n".format(base_path))
+		sub_file.write("cd {}\n".format(base_path))
+		sub_file.write("python {0}/scripts/run.py {0} {1} {2} {3} {4} true {5} {6} {8} &> {0}/logs/{7}_snippy.log\n".format(base_path, os.path.dirname(read_path), reference, outdir, threads, id_threshold, read_path, get_samplename(read_path), mem))
+	p = subprocess.Popen(["qsub", "-V", os.path.join(temp_dir,"qsub.sh")], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	output = p.communicate()[0].decode('utf-8')
+	id = output.strip()
+	os.remove(os.path.join(temp_dir,"qsub.sh"))
+	return id
+
+
+def submit_tree_hpc_script(temp_dir, read_path, outdir, reference, threads, mem, queue, base_path, id_threshold, alignment_ids):
+	with open(os.path.join(temp_dir,"qsub.sh"), 'w') as sub_file:
+		sub_file.write("#PBS -N sp_tree_build\n")
 		sub_file.write("#PBS -l ncpus={}\n".format(threads))
 		sub_file.write("#PBS -l mem={}\n".format(mem))
 		sub_file.write("#PBS -l walltime=200:00:00\n")
 		sub_file.write("#PBS -q {}\n".format(queue))
 		sub_file.write("#PBS -o {}/logs/snp_phylogeny.out\n".format(base_path))
 		sub_file.write("#PBS -e {}/logs/snp_phylogeny.err\n\n".format(base_path))
+		sub_file.write("export PATH={}/.mc/bin:$PATH\n".format(base_path))
 		sub_file.write("cd {}\n".format(base_path))
-		sub_file.write("python {0}/scripts/run.py {0} {1} {2} {3} {4} true {5} {6} &> {}/logs/{7}_snippy.log\n".format(base_path, os.path.dirname(read_path), reference, outdir, threads, id_threshold, read_path, get_samplename(read_path)))
-	subprocess.run(["qsub", "-V", os.path.join(temp_dir,"qsub.sh")], check=True, stderr=subprocess.STDOUT)
+		sub_file.write("python {0}/scripts/run.py {0} {1} {2} {3} {4} true {5} {6} {7} &>> {0}/logs/snp_phylogeny.log\n".format(base_path, os.path.dirname(read_path), reference, outdir, threads, id_threshold, 'all', mem))
+	subprocess.run(["qsub", "-V", "-W", "depend=afterok:{}".format(":".join(alignment_ids)), os.path.join(temp_dir,"qsub.sh")], check=True, stderr=subprocess.STDOUT)
 	os.remove(os.path.join(temp_dir,"qsub.sh"))
+
+
 
 def ditch_distant_sequences(core_data, id_threshold):
 	core_data_handle = open(core_data)
